@@ -30,7 +30,6 @@ class RagPipeline:
         # self.semantic_search = Semantic_search()
             
     def tokenize(self, text):
-        # return re.split(r'[-\s,./;<=>?!_(){}":]+', text.lower())
         return re.split(r"[\W_]+", text.lower())
 
 
@@ -48,7 +47,6 @@ class RagPipeline:
             cleaned_chunk = []
 
             for token in chunk:
-                # token = token.strip(".,;:!?(){}[]'\"-_")
 
                 if len(token) < 3 or not token or token in stop_words:
                     continue
@@ -76,17 +74,6 @@ class RagPipeline:
                 for chunk in chunks:
                     self.chunks.update({f"{file}{chunk['first_character_index']}" : chunk})
 
-    def calculate_token_freq(self):
-        for chunk in self.tokenized_chunks:
-            chunk_id = chunk['id']
-
-            for token in chunk['content']:
-                if token not in self.tokens_freq:
-                    self.tokens_freq[token] = {}
-
-                self.tokens_freq[token][chunk_id] = (
-                    self.tokens_freq[token].get(chunk_id, 0) + 1
-            )
 
     def build(self):
 
@@ -98,13 +85,11 @@ class RagPipeline:
         ]
 
         self.tokenized_chunks = self.clean_tokenized_chunks(tokenized_chunks)
-    
+
         self.bm25 = BM25(self.tokenized_chunks)
-        self.calculate_token_freq()
-        self.bm25.token_freq = self.tokens_freq
+        self.tokens_freq = self.bm25.calculate_token_freq()
 
         # self.bm25 = BM25Okapi([chunk['content'] for chunk in self.tokenized_chunks])
-
     
     def save(self):
         
@@ -129,7 +114,6 @@ class RagPipeline:
         self.chunk()
         self.build()
         self.save()
-
     
     def load(self, path="data/processed/lexical_index"):
         print("loading data from disk ...")
@@ -150,7 +134,7 @@ class RagPipeline:
         self.tokenized_chunks = data["tokenized_chunks"]
         # self.bm25 = BM25Okapi([chunk['content'] for chunk in self.tokenized_chunks])
         self.bm25 = BM25(self.tokenized_chunks)
-        self.bm25.token_freq = data['tokens_freq']
+        self.bm25.tokens_freq = data['tokens_freq']
 
 
 

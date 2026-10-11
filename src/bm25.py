@@ -14,39 +14,42 @@
 import math
 
 class BM25:
-    def __init__(self, chunks):
+    def __init__(self, tokenized_chunks):
 
-        self.chunks = chunks
+        self.tokenized_chunks = tokenized_chunks
 
         self.k1 = 1.5
 
         # number of chunks 
-        self.corpus_size = len(self.chunks)
+        self.corpus_size = len(self.tokenized_chunks)
 
         # avg chunk lenght in chunks
-        self.avgcl = 0
+        self.avgcl = self.calculate_avgcl()
 
-        # chunks containing each token
-        self.token_freq = {} # {token: [chunks id containing the token]}
+        self.tokens_freq = {} # {"token": {"chunk_id": 2}}
 
-        self.calculate_avgcl()
-        # self.calculate_token_freq()
-    
     def calculate_avgcl(self):
-        sum_lengs = sum([len(chunk['content']) for chunk in self.chunks])
-        self.avgcl =  sum_lengs / len(self.chunks)
+        sum_lengs = sum([len(chunk['content']) for chunk in self.tokenized_chunks])
+        return  sum_lengs / len(self.tokenized_chunks)
 
 
-    # def calculate_token_freq(self):
-    #     for chunk in self.chunks:
-    #         for token in chunk['content']:
-    #             self.token_freq.setdefault(token, []).append(chunk['id'])
+    def calculate_token_freq(self):
+        for chunk in self.tokenized_chunks:
+            chunk_id = chunk['id']
+
+            for token in chunk['content']:
+                if token not in self.tokens_freq:
+                    self.tokens_freq[token] = {}
+
+                self.tokens_freq[token][chunk_id] = (
+                    self.tokens_freq[token].get(chunk_id, 0) + 1
+                )
+        return self.tokens_freq
 
 
     def TF(self, token, chunk):
 
-        # freq = self.token_freq.get(token, []).count(chunk['id'])
-        freq = self.token_freq.get(token, {}).get(chunk['id'], 0)
+        freq = self.tokens_freq.get(token, {}).get(chunk['id'], 0)
         d = len(chunk['content'])
 
         part2 = freq + self.k1 * (
@@ -56,26 +59,28 @@ class BM25:
         return freq / part2 if part2 else 0
 
     def IDF(self, token):
-        N = len(self.chunks)
-        nt = len(set(self.token_freq.get(token, [])))
+        N = self.corpus_size
+        nt = len(self.tokens_freq.get(token, []))
 
         return math.log(1 + ((N - nt + 0.5) / (nt + 0.5)))
 
     def score(self, query, chunk):
         score = 0
-        
+
         for token in query:
-            score += self.IDF(token) * self.TF(token, chunk)
+            tf = self.TF(token, chunk)
+            if tf == 0:
+                continue
+            score += self.IDF(token) * tf
         return score
 
     def get_scores(self, query):
         scores = []
 
-        for chunk in self.chunks:
+        for chunk in self.tokenized_chunks:
             scores.append(self.score(query, chunk))
-
         return scores
-        
+
 # bm25 = BM25(tokenized_chunks)
 
 
